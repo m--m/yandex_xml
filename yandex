@@ -1,0 +1,128 @@
+<?php
+/*
+ * Prepare data for feed
+ */
+
+ 
+class DataSource {
+    public function items()
+    {
+        $data = array();
+        $data[0]['internal-id'] = 1;
+        $data[0]['type']='type';
+        $data[0]['property-type'] = 'type';
+        $data[0]['category']='cat';
+        $data[0]['url'] = 'url';
+        $data[0]['creation-date'] = '2010-11-13T12:32:45+04:00';
+        $data[0]['country'] = 'cou';
+        $data[0]['locality-name'] = 'loc';
+        $data[0]['address'] = 'addr';
+        $data[0]['phone'] = '123';
+        
+        return $data;
+    }
+}
+
+
+/*
+ * XML formating for Yandex Feed
+ * Author: Michael Makarenkov
+ */
+
+
+interface FeedFactory {
+
+    public function create();
+}
+
+class YandexFactory implements FeedFactory {
+
+    public function create() {
+        return new Yandex();
+    }
+
+}
+
+abstract class Feed {
+
+    var $fileDescriptor;
+
+    public function writeHeader(){}
+
+    public function writeFooter(){}
+
+    public function writeItem(){}
+}
+
+class Yandex extends Feed {
+
+    public function __construct() {
+        $this->fileDescriptor = fopen("ya_feed.xml", "w");
+        $this->writeHeader();
+        
+        $dataSource = new DataSource();
+        /*
+         * $data should be array data
+         */
+        foreach($dataSource->items() as $data) {
+            $this->writeItem($data);
+        }
+        
+        $this->writeFooter();
+    }
+
+    public function writeHeader() {
+        $str = '<?xml version="1.0" encoding="UTF-8"?>
+            <realty-feed xmlns="http://webmaster.yandex.ru/schemas/feed/realty/2010-06">
+            <generation-date>'.date('Y-m-d',time()).'T'.date('H:i:s',time()).'+04:00</generation-date>';
+        fwrite($this->fileDescriptor, $str);
+    }
+
+    public function writeFooter() {
+        $str = '</realty-feed>';
+        fwrite($this->fileDescriptor, $str);
+        fclose($this->fileDescriptor);
+    }
+    
+    public function writeItem($data) {
+        $str = '<offer internal-id="'.$data['internal-id'].'">
+        <type>'.$data['type'].'</type>
+        <property-type>'.$data['property-type'].'</property-type>
+        <category>'.$data['category'].'</category>
+
+        <url>'.$data['url'].'</url>
+        <creation-date>'.$data['creation-date'].'</creation-date>
+
+        <location>
+            <country>'.$data['country'].'</country>
+            <locality-name>'.$data['locality-name'].'</locality-name>
+            <address>'.$data['address'].'</address>
+        </location>
+        <sales-agent>
+            <phone>'.$data['phone'].'</phone>
+        </sales-agent>
+        </offer>';
+        fwrite($this->fileDescriptor, $str);
+    }
+
+}
+
+class Application {
+
+    public function __construct(FeedFactory $ef) {
+        $feedObj = $ef->create();
+
+    }
+
+}
+
+class ApplicationRunner {
+
+    public static function run() {
+        $feed = new YandexFactory();
+        new Application($feed);
+    }
+
+}
+
+ApplicationRunner::run();
